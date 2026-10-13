@@ -406,10 +406,8 @@ body {
 </div>
 
 <script>
-
-<script>
 const CHANNEL_ID = '3533676';
-const READ_API_KEY = 'FJNJD8GY8INE9DDA'; // public channel or add read key if private
+const READ_API_KEY = 'FJNJD8GY8INE9DDA';
 
 let prevWorkerInside = false;
 let logEntries = [];
@@ -503,25 +501,22 @@ async function fetchLatest() {
       `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json?api_key=${READ_API_KEY}`
     );
     const d = await res.json();
-    // field1=gas, field2=temp, field3=hum, field4=blockage, field5=alert, field6=worker
     updateUI({
-      gas_level:     parseInt(d.field1) || 0,
-      temperature:   parseFloat(d.field2) || 0,
-      humidity:      parseFloat(d.field3) || 0,
+      gas_level:      parseInt(d.field1) || 0,
+      temperature:    parseFloat(d.field2) || 0,
+      humidity:       parseFloat(d.field3) || 0,
       drain_blockage: parseInt(d.field4) || 0,
-      alert_level:   parseInt(d.field5) || 0,
-      worker_inside: parseInt(d.field6) === 1,
-      time_inside:   0
+      alert_level:    parseInt(d.field5) || 0,
+      worker_inside:  parseInt(d.field6) === 1,
+      time_inside:    0
     });
   } catch(e) {
     document.getElementById('connStatus').textContent = 'Connection error';
   }
 }
 
-// ThingSpeak updates every 16s, poll every 17s
 fetchLatest();
 setInterval(fetchLatest, 17000);
 addLog('Dashboard started', 'safe');
 </script>
-
 </body></html>
