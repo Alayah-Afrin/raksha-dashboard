@@ -406,8 +406,10 @@ body {
 </div>
 
 <script>
-const SUPABASE_URL = 'https://ycchkrdzozsemsgsmqtq.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljY2hrcmR6b3pzZW1zZ3NtcXRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NTgwNzEsImV4cCI6MjEwNzQzNDA3MX0.UbvLDokw69xN3yjDxWHCOmkGnEb8A5cORN3B6FJr9nA';
+
+<script>
+const CHANNEL_ID = '3533676';
+const READ_API_KEY = 'FJNJD8GY8INE9DDA'; // public channel or add read key if private
 
 let prevWorkerInside = false;
 let logEntries = [];
@@ -436,19 +438,16 @@ function updateUI(data) {
   const worker = data.worker_inside ?? false;
   const timeIn = data.time_inside ?? 0;
 
-  // Stats
   document.getElementById('gasVal').textContent = gas;
-  document.getElementById('tempVal').textContent = temp.toFixed(1);
-  document.getElementById('humVal').textContent = hum.toFixed(0);
+  document.getElementById('tempVal').textContent = parseFloat(temp).toFixed(1);
+  document.getElementById('humVal').textContent = parseFloat(hum).toFixed(0);
   document.getElementById('blockVal').textContent = block;
 
-  // Gas status
   let gasLabel = 'SAFE — Normal air quality';
   if (gas > 600) gasLabel = 'DANGER — High gas concentration!';
   else if (gas > 350) gasLabel = 'WARNING — Gas detected';
   document.getElementById('gasStatus').textContent = gasLabel;
 
-  // Drain
   document.getElementById('drainPct').textContent = block + '%';
   document.getElementById('drainFill').style.width = block + '%';
   document.getElementById('drainFill').style.background =
@@ -456,25 +455,21 @@ function updateUI(data) {
   document.getElementById('blockStatus').textContent =
     block > 70 ? 'SEVERELY BLOCKED' : block > 40 ? 'Partially blocked' : 'Flow normal';
 
-  // Gas bar
   const gasPct = Math.min((gas / 1023) * 100, 100);
   document.getElementById('gasFill').style.width = gasPct + '%';
   document.getElementById('gasFill').style.background =
     gas > 600 ? 'var(--danger)' : gas > 350 ? 'var(--warn)' : 'var(--safe)';
 
-  // Worker
   const badge = document.getElementById('workerBadge');
   badge.textContent = worker ? 'INSIDE' : 'OUTSIDE';
   badge.className = 'worker-badge ' + (worker ? 'inside' : 'outside');
   document.getElementById('workerDetail').textContent =
     worker ? `Time inside: ${timeIn}s` : 'Not in drain';
 
-  // Worker entry/exit log
   if (worker && !prevWorkerInside) addLog('Worker entered drain', 'warning');
   if (!worker && prevWorkerInside) addLog('Worker exited drain', 'safe');
   prevWorkerInside = worker;
 
-  // Alert bar
   const bar = document.getElementById('alertBar');
   const icon = document.getElementById('alertIcon');
   const title = document.getElementById('alertTitle');
@@ -498,7 +493,6 @@ function updateUI(data) {
     addLog('DANGER: Evacuate worker!', 'danger');
   }
 
-  // Last updated
   document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
   document.getElementById('connStatus').textContent = 'Connected';
 }
@@ -506,19 +500,27 @@ function updateUI(data) {
 async function fetchLatest() {
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/raksha_data?order=created_at.desc&limit=1`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+      `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json?api_key=${READ_API_KEY}`
     );
-    const rows = await res.json();
-    if (rows && rows.length > 0) updateUI(rows[0]);
+    const d = await res.json();
+    // field1=gas, field2=temp, field3=hum, field4=blockage, field5=alert, field6=worker
+    updateUI({
+      gas_level:     parseInt(d.field1) || 0,
+      temperature:   parseFloat(d.field2) || 0,
+      humidity:      parseFloat(d.field3) || 0,
+      drain_blockage: parseInt(d.field4) || 0,
+      alert_level:   parseInt(d.field5) || 0,
+      worker_inside: parseInt(d.field6) === 1,
+      time_inside:   0
+    });
   } catch(e) {
     document.getElementById('connStatus').textContent = 'Connection error';
   }
 }
 
-// Poll every 3 seconds
+// ThingSpeak updates every 16s, poll every 17s
 fetchLatest();
-setInterval(fetchLatest, 3000);
+setInterval(fetchLatest, 17000);
 addLog('Dashboard started', 'safe');
 </script>
 
