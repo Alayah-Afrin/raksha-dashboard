@@ -1,0 +1,525 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>RAKSHA Dashboard</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+/* Layout: fixed header, 2-col stat grid, live feed panel */
+:root {
+  --bg: #0a0f1a;
+  --bg2: #111827;
+  --bg3: #1c2333;
+  --border: #2a3347;
+  --fg: #e2e8f0;
+  --fg2: #94a3b8;
+  --safe: #10b981;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --accent: #38bdf8;
+  --safe-bg: rgba(16,185,129,0.12);
+  --warn-bg: rgba(245,158,11,0.12);
+  --danger-bg: rgba(239,68,68,0.12);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f0f4f8;
+    --bg2: #ffffff;
+    --bg3: #e8edf5;
+    --border: #d1dae8;
+    --fg: #0f172a;
+    --fg2: #475569;
+    --safe: #059669;
+    --warn: #d97706;
+    --danger: #dc2626;
+    --accent: #0284c7;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f0f4f8; --bg2: #ffffff; --bg3: #e8edf5; --border: #d1dae8;
+  --fg: #0f172a; --fg2: #475569; --safe: #059669; --warn: #d97706;
+  --danger: #dc2626; --accent: #0284c7; color-scheme: light;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  min-height: 100%;
+  padding-inline: 0;
+}
+
+/* Header */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-icon {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, var(--accent), #6366f1);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.logo-text { font-weight: 700; font-size: 16px; letter-spacing: 0.05em; }
+.logo-sub { font-size: 11px; color: var(--fg2); letter-spacing: 0.08em; text-transform: uppercase; }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.live-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--safe-bg);
+  border: 1px solid var(--safe);
+  color: var(--safe);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.live-dot {
+  width: 7px; height: 7px;
+  background: var(--safe);
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.conn-status { font-size: 12px; color: var(--fg2); font-family: 'JetBrains Mono', monospace; }
+
+/* Emergency Banner */
+.emergency-banner {
+  background: var(--danger);
+  color: white;
+  text-align: center;
+  padding: 12px 24px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.05em;
+  animation: flash 0.8s infinite;
+  display: none;
+}
+.emergency-banner.active { display: block; }
+@keyframes flash {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Main layout */
+.main { padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
+
+/* Alert bar */
+.alert-bar {
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid;
+  transition: all 0.4s ease;
+}
+.alert-bar.safe { background: var(--safe-bg); border-color: var(--safe); }
+.alert-bar.warning { background: var(--warn-bg); border-color: var(--warn); }
+.alert-bar.danger { background: var(--danger-bg); border-color: var(--danger); }
+.alert-icon { font-size: 28px; }
+.alert-text h2 { font-size: 18px; font-weight: 700; }
+.alert-text p { font-size: 13px; color: var(--fg2); margin-top: 2px; }
+.alert-bar.safe .alert-text h2 { color: var(--safe); }
+.alert-bar.warning .alert-text h2 { color: var(--warn); }
+.alert-bar.danger .alert-text h2 { color: var(--danger); }
+
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg2);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.stat-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.stat-unit { font-size: 13px; color: var(--fg2); margin-left: 4px; font-family: 'Inter', sans-serif; }
+.stat-sub { font-size: 12px; color: var(--fg2); margin-top: 6px; }
+
+/* Bottom panels */
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.panel-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg2);
+  font-weight: 600;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Drain level visual */
+.drain-visual {
+  position: relative;
+  height: 28px;
+  background: var(--bg3);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.drain-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.8s ease, background 0.4s ease;
+  background: var(--safe);
+}
+.drain-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--fg2);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Worker status */
+.worker-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg3);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.worker-icon { font-size: 24px; }
+.worker-info { flex: 1; }
+.worker-name { font-weight: 600; font-size: 14px; }
+.worker-detail { font-size: 12px; color: var(--fg2); margin-top: 2px; }
+.worker-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.worker-badge.inside { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+.worker-badge.outside { background: var(--safe-bg); color: var(--safe); border: 1px solid var(--safe); }
+
+/* Gas bar */
+.gas-bar-wrap { margin-top: 8px; }
+.gas-track {
+  height: 12px;
+  background: var(--bg3);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 6px;
+}
+.gas-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.8s ease, background 0.4s ease;
+}
+.gas-markers {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--fg2);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Log feed */
+.log-feed {
+  max-height: 180px;
+  overflow-y: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+.log-entry {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg2);
+  display: flex;
+  gap: 10px;
+}
+.log-entry:last-child { border-bottom: none; }
+.log-time { color: var(--fg2); min-width: 60px; }
+.log-msg { color: var(--fg); }
+.log-entry.danger .log-msg { color: var(--danger); }
+.log-entry.warning .log-msg { color: var(--warn); }
+.log-entry.safe .log-msg { color: var(--safe); }
+
+/* Last updated */
+.last-updated {
+  text-align: center;
+  font-size: 11px;
+  color: var(--fg2);
+  margin-top: 16px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .main { padding: 12px 16px; }
+  .header { padding: 0 16px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stat-value { font-size: 22px; }
+}
+</style>
+
+<!-- Emergency Banner -->
+<div class="emergency-banner" id="emergencyBanner">
+  ⚠️ DANGER ALERT — EVACUATE WORKER IMMEDIATELY ⚠️
+</div>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">🛡️</div>
+    <div>
+      <div class="logo-text">RAKSHA</div>
+      <div class="logo-sub">Urban Drain & Worker Safety</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="conn-status" id="connStatus">Connecting...</div>
+    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Alert Bar -->
+  <div class="alert-bar safe" id="alertBar">
+    <div class="alert-icon" id="alertIcon">✅</div>
+    <div class="alert-text">
+      <h2 id="alertTitle">ALL SYSTEMS SAFE</h2>
+      <p id="alertDesc">No anomalies detected. Drain clear, gas levels normal.</p>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Gas Level (MQ-2)</div>
+      <div><span class="stat-value" id="gasVal">—</span><span class="stat-unit">/ 1023</span></div>
+      <div class="stat-sub" id="gasStatus">Awaiting data...</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Temperature</div>
+      <div><span class="stat-value" id="tempVal">—</span><span class="stat-unit">°C</span></div>
+      <div class="stat-sub">Worker environment</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Humidity</div>
+      <div><span class="stat-value" id="humVal">—</span><span class="stat-unit">%</span></div>
+      <div class="stat-sub">Relative humidity</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Drain Blockage</div>
+      <div><span class="stat-value" id="blockVal">—</span><span class="stat-unit">%</span></div>
+      <div class="stat-sub" id="blockStatus">Awaiting data...</div>
+    </div>
+  </div>
+
+  <!-- Panels -->
+  <div class="panels">
+
+    <!-- Drain Panel -->
+    <div class="panel">
+      <div class="panel-title">Drain Status <span id="drainPct">—%</span></div>
+      <div class="drain-visual">
+        <div class="drain-fill" id="drainFill" style="width:0%"></div>
+      </div>
+      <div class="drain-labels"><span>0% Clear</span><span>50%</span><span>100% Blocked</span></div>
+      <div style="margin-top:14px;">
+        <div class="stat-label">Gas Concentration</div>
+        <div class="gas-bar-wrap">
+          <div class="gas-track">
+            <div class="gas-fill" id="gasFill" style="width:0%; background: var(--safe)"></div>
+          </div>
+          <div class="gas-markers"><span>0</span><span>350 WARN</span><span>600 DANGER</span><span>1023</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Worker Panel -->
+    <div class="panel">
+      <div class="panel-title">Worker Status</div>
+      <div class="worker-status">
+        <div class="worker-icon">👷</div>
+        <div class="worker-info">
+          <div class="worker-name">Field Worker</div>
+          <div class="worker-detail" id="workerDetail">Time inside: —</div>
+        </div>
+        <div class="worker-badge outside" id="workerBadge">OUTSIDE</div>
+      </div>
+      <div class="stat-label" style="margin-top:14px;">Event Log</div>
+      <div class="log-feed" id="logFeed">
+        <div class="log-entry"><span class="log-time">--:--:--</span><span class="log-msg">Awaiting sensor data...</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="last-updated">Last updated: <span id="lastUpdated">—</span></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ycchkrdzozsemsgsmqtq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljY2hrcmR6b3pzZW1zZ3NtcXRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NTgwNzEsImV4cCI6MjEwNzQzNDA3MX0.UbvLDokw69xN3yjDxWHCOmkGnEb8A5cORN3B6FJr9nA';
+
+let prevWorkerInside = false;
+let logEntries = [];
+
+function addLog(msg, type='safe') {
+  const now = new Date();
+  const t = now.toTimeString().slice(0,8);
+  logEntries.unshift({t, msg, type});
+  if (logEntries.length > 20) logEntries.pop();
+  renderLog();
+}
+
+function renderLog() {
+  const feed = document.getElementById('logFeed');
+  feed.innerHTML = logEntries.map(e =>
+    `<div class="log-entry ${e.type}"><span class="log-time">${e.t}</span><span class="log-msg">${e.msg}</span></div>`
+  ).join('');
+}
+
+function updateUI(data) {
+  const gas = data.gas_level ?? 0;
+  const temp = data.temperature ?? 0;
+  const hum = data.humidity ?? 0;
+  const block = data.drain_blockage ?? 0;
+  const alert = data.alert_level ?? 0;
+  const worker = data.worker_inside ?? false;
+  const timeIn = data.time_inside ?? 0;
+
+  // Stats
+  document.getElementById('gasVal').textContent = gas;
+  document.getElementById('tempVal').textContent = temp.toFixed(1);
+  document.getElementById('humVal').textContent = hum.toFixed(0);
+  document.getElementById('blockVal').textContent = block;
+
+  // Gas status
+  let gasLabel = 'SAFE — Normal air quality';
+  if (gas > 600) gasLabel = 'DANGER — High gas concentration!';
+  else if (gas > 350) gasLabel = 'WARNING — Gas detected';
+  document.getElementById('gasStatus').textContent = gasLabel;
+
+  // Drain
+  document.getElementById('drainPct').textContent = block + '%';
+  document.getElementById('drainFill').style.width = block + '%';
+  document.getElementById('drainFill').style.background =
+    block > 70 ? 'var(--danger)' : block > 40 ? 'var(--warn)' : 'var(--safe)';
+  document.getElementById('blockStatus').textContent =
+    block > 70 ? 'SEVERELY BLOCKED' : block > 40 ? 'Partially blocked' : 'Flow normal';
+
+  // Gas bar
+  const gasPct = Math.min((gas / 1023) * 100, 100);
+  document.getElementById('gasFill').style.width = gasPct + '%';
+  document.getElementById('gasFill').style.background =
+    gas > 600 ? 'var(--danger)' : gas > 350 ? 'var(--warn)' : 'var(--safe)';
+
+  // Worker
+  const badge = document.getElementById('workerBadge');
+  badge.textContent = worker ? 'INSIDE' : 'OUTSIDE';
+  badge.className = 'worker-badge ' + (worker ? 'inside' : 'outside');
+  document.getElementById('workerDetail').textContent =
+    worker ? `Time inside: ${timeIn}s` : 'Not in drain';
+
+  // Worker entry/exit log
+  if (worker && !prevWorkerInside) addLog('Worker entered drain', 'warning');
+  if (!worker && prevWorkerInside) addLog('Worker exited drain', 'safe');
+  prevWorkerInside = worker;
+
+  // Alert bar
+  const bar = document.getElementById('alertBar');
+  const icon = document.getElementById('alertIcon');
+  const title = document.getElementById('alertTitle');
+  const desc = document.getElementById('alertDesc');
+  const banner = document.getElementById('emergencyBanner');
+
+  bar.className = 'alert-bar ' + ['safe','warning','danger'][alert];
+  if (alert === 0) {
+    icon.textContent = '✅'; title.textContent = 'ALL SYSTEMS SAFE';
+    desc.textContent = 'No anomalies detected. Drain clear, gas levels normal.';
+    banner.classList.remove('active');
+  } else if (alert === 1) {
+    icon.textContent = '⚠️'; title.textContent = 'WARNING';
+    desc.textContent = 'Elevated readings detected. Monitor closely.';
+    banner.classList.remove('active');
+    addLog('Warning threshold crossed', 'warning');
+  } else {
+    icon.textContent = '🚨'; title.textContent = 'DANGER — IMMEDIATE ACTION REQUIRED';
+    desc.textContent = 'Critical gas levels or drain blockage. Evacuate worker now!';
+    banner.classList.add('active');
+    addLog('DANGER: Evacuate worker!', 'danger');
+  }
+
+  // Last updated
+  document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+  document.getElementById('connStatus').textContent = 'Connected';
+}
+
+async function fetchLatest() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/raksha_data?order=created_at.desc&limit=1`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    const rows = await res.json();
+    if (rows && rows.length > 0) updateUI(rows[0]);
+  } catch(e) {
+    document.getElementById('connStatus').textContent = 'Connection error';
+  }
+}
+
+// Poll every 3 seconds
+fetchLatest();
+setInterval(fetchLatest, 3000);
+addLog('Dashboard started', 'safe');
+</script>
+
+</body></html>
